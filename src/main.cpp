@@ -16,8 +16,31 @@
 #include <eval/moFullEvalByModif.h>
 #include <eval/moFullEvalByCopy.h>
 #include <eoInt.h>
+#include <utils/eoParam.h>
 
+// Fitness function
+#include <eoEvalFunc.h>
 
+// Neighbors and Neighborhoods
+#include <neighborhood/moNeighbor.h>
+#include <neighborhood/moNeighborhood.h>
+
+// ########## Algorithm and its components ##########
+// Hill-climber and it components
+#include <algo/moSimpleHC.h>
+// Simulated Annealing
+#include <algo/moSA.h>
+
+// Cooling Schedule
+#include <coolingSchedule/moCoolingSchedule.h>
+
+// Comparator
+#include <comparator/moSolNeighborComparator.h>
+
+//continuators
+#include <continuator/moTrueContinuator.h>
+#include <continuator/moCheckpoint.h>
+#include <continuator/moCounterStat.h>
 
 //-----------------------------------------------------------------------------
 // Global problem description
@@ -30,14 +53,11 @@ static std::vector<std::vector<int>> Valuations;
 //-----------------------------------------------------------------------------
 // representation of solutions, and neighbors
 // eoInt is based on eoVector class
-
-// unsigned int for maximin and double with leximin
+// Change <unsigned int> for maximin and <double> with leximin
 typedef eoInt<double> Allocation;
 
 //-----------------------------------------------------------------------------
 // fitness function and evaluation of solution
-#include <eoEvalFunc.h>
-
 template< class EOT >
 class allocationEval : public eoEvalFunc<EOT>
 {
@@ -90,11 +110,8 @@ public:
 
 //-----------------------------------------------------------------------------
 // neighbor description
-
 // Neighbor = How to compute the neighbor from the solution + information on it (i.e. fitness)
 // all classes from paradisEO-mo use this template type
-
-#include <neighborhood/moNeighbor.h>
 
 /**
  * Modifying an existing allocation by moving a given item to a given agent
@@ -138,8 +155,6 @@ private:
 
 //-----------------------------------------------------------------------------
 // neighborhood description
-#include <neighborhood/moNeighborhood.h>
-
 // template <class EOT, class Fitness= unsigned int>
 template <class EOT, class Fitness=typename EOT::Fitness>
 class moveNeighborhood : public moNeighborhood<moveNeighbor<EOT, Fitness> >
@@ -206,30 +221,6 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-// the simple Hill-Climbing local search
-#include <algo/moSimpleHC.h>
-
-#include <algo/moSA.h>
-
-#include <continuator/moStat.h>
-#include <continuator/moValueStat.h>
-#include <utils/eoParam.h>
-
-
-//Algorithm and its components
-#include <coolingSchedule/moCoolingSchedule.h>
-#include <algo/moSA.h>
-
-//comparator
-#include <comparator/moSolNeighborComparator.h>
-
-//continuators
-#include <continuator/moTrueContinuator.h>
-#include <continuator/moCheckpoint.h>
-#include <continuator/moFitnessStat.h>
-#include <utils/eoFileMonitor.h>
-#include <continuator/moCounterMonitorSaver.h>
-#include <continuator/moCounterStat.h>
 
 int main()
 {
@@ -243,28 +234,6 @@ int main()
 
     Valuations.clear();
     Valuations.resize(N, std::vector<int>(M));
-    // Manually set valuations for the agents
-
-    Valuations[0] = {1, 2, 3, 4, 5, 6, 7, 4}; // First agent
-    Valuations[1] = {4, 3, 2, 1, 2, 5, 6, 7}; // Second agents
-    Valuations[2] = {2, 1, 1, 4, 1, 1, 7, 7}; // Second agents
-    Valuations[3] = {7, 7, 7, 7, 7, 0, 0, 1}; // Second agents
-    Valuations[4] = {0, 0, 0, 6, 6, 6, 7, 7}; // Second agents
-    Valuations[5] = {7, 6, 5, 4, 3, 2, 1, 0}; // Second agents
-    Valuations[6] = {1, 1, 3, 1, 5, 6, 6, 7}; // Second agents
-    
-
-   // Manually set valuations for the agents
-   /*
-    Valuations[0] = {7, 7, 7, 7, 7, 7, 7, 7}; // First agent
-    Valuations[1] = {7, 7, 7, 7, 7, 7, 7, 7}; // Second agents
-    Valuations[2] = {7, 7, 7, 7, 7, 7, 7, 7}; // Thired agents
-    Valuations[3] = {7, 7, 7, 7, 7, 7, 7, 7}; // Fourth agents
-    Valuations[4] = {7, 7, 7, 7, 7, 7, 7, 7}; // Fifth agents
-    Valuations[5] = {7, 7, 7, 7, 7, 7, 7, 7}; // Sixth agents
-    Valuations[6] = {7, 7, 7, 7, 7, 7, 7, 7}; // Seventh agents
-    */
-   
     // Assign random valuations to each item
     /*
     for (int n = 0; n < N; n++) {
@@ -273,7 +242,26 @@ int main()
         }
     }*/
 
-
+    // ####### Manually setup for testing purposes #######
+    // Manually set valuations for the agents
+    Valuations[0] = {1, 2, 3, 4, 5, 6, 7, 4}; // First agent
+    Valuations[1] = {4, 3, 2, 1, 2, 5, 6, 7}; // Second agent
+    Valuations[2] = {2, 1, 1, 4, 1, 1, 7, 7}; // Third agent
+    Valuations[3] = {7, 7, 7, 7, 7, 0, 0, 1}; // Fourth agent
+    Valuations[4] = {0, 0, 0, 6, 6, 6, 7, 7}; // Fifth agent
+    Valuations[5] = {7, 6, 5, 4, 3, 2, 1, 0}; // Sixth agent
+    Valuations[6] = {1, 1, 3, 1, 5, 6, 6, 7}; // Seventh agent
+    
+   /*
+    Valuations[0] = {7, 7, 7, 7, 7, 7, 7, 7}; // First agent
+    Valuations[1] = {7, 7, 7, 7, 7, 7, 7, 7}; // Second agents
+    Valuations[2] = {7, 7, 7, 7, 7, 7, 7, 7}; // Third agents
+    Valuations[3] = {7, 7, 7, 7, 7, 7, 7, 7}; // Fourth agents
+    Valuations[4] = {7, 7, 7, 7, 7, 7, 7, 7}; // Fifth agents
+    Valuations[5] = {7, 7, 7, 7, 7, 7, 7, 7}; // Sixth agents
+    Valuations[6] = {7, 7, 7, 7, 7, 7, 7, 7}; // Seventh agents
+    */
+   
     // Initialize solution with random elements from 1 to n
     Allocation solution(M);
     for (int m = 0; m < M; m++)
@@ -292,11 +280,9 @@ int main()
     moveNeighborhood<Allocation> moveNH;
 
     // Iterate through all neighbours and print their evaluation
-    
-     /*
+    /*
     int moveCounter = 0;
 
-   
     moveNeighbor<Allocation> move;
     moveNH.init(solution, move);
     moveEval(solution, move);
@@ -306,46 +292,49 @@ int main()
         moveEval(solution, move);
         move.print();
         moveCounter++;
-    }*/
+    }
 
-    // std::cout << "moves: "<< moveCounter << std::endl <<std::endl;
+    std::cout << "moves: "<< moveCounter << std::endl <<std::endl;
+    */
 
     /* =========================================================
      *
      * the cooling schedule of the process
      *
      * ========================================================= */
+    // Define the parameters for the cooling schedule
+    double initialTemperature = 1;      // Initial temperature
+    double coolingFactor = 0.9;        // Factor by which the temperature will be multiplied at each step
+    unsigned span = 100;              // Number of iterations with the same temperature
+    double finalTemperature = 0.01;  // Final temperature, stopping criterion
 
-    // initial temp, factor of decrease, number of steps without decrease, final temp.
+    moSimpleCoolingSchedule<Allocation> coolingSchedule(initialTemperature, coolingFactor, span, finalTemperature);
 
-    moSimpleCoolingSchedule<Allocation> coolingSchedule(1, 0.06, 100, 0.000000001);
-
+    /* =========================================================
+     *
+     * Checkpointing
+     *
+     * ========================================================= */
     moTrueContinuator<moveNeighbor<Allocation>> continuator;
     moCheckpoint<moveNeighbor<Allocation>> checkpoint(continuator);
-
-    // Define the eoValueParam to hold the iteration count
-    eoValueParam<unsigned> iterationCount(0, "Iteration Count");
-    
     moCounterStat<Allocation> iterStat;
-    //moValueStat<Allocation, unsigned> iterStat(iterationCount);
     checkpoint.add(iterStat);
 
-
-    // Define the parameters for the cooling schedule
-    double initialTemperature = 10.0;  // Initial temperature
-    double coolingFactor = 0.0000001;        // Factor by which the temperature will be multiplied at each step
-    unsigned span = 100;               // Number of iterations with the same temperature
-    double finalTemperature = 0.000001;    // Final temperature, stopping criterion
-
-    moSA<moveNeighbor<Allocation>> localSearch1(moveNH, fullEval, moveEval, coolingSchedule, checkpoint);
-    localSearch1(solution);
-
-    // Define the simple Hill-Climbing 
+    /* =========================================================
+     *
+     * Initialization and Execution of algorithms
+     *
+     * ========================================================= */
+    //Define the simple Hill-Climbing 
     //moSimpleHC<moveNeighbor<Allocation>> hc(moveNH, fullEval, moveEval);
-
     // apply the local search on the solution
     //hc(solution);
 
+    // Simulated Annealing
+    moSA<moveNeighbor<Allocation>> localSearch1(moveNH, fullEval, moveEval, coolingSchedule, checkpoint);
+    localSearch1(solution);
+
+    // Printing out results
     std::cout << "final: " << solution << std::endl << std::endl ;
     std::cout << "Iterations: " << iterStat.getValue() << std::endl ;
 
