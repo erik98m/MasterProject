@@ -17,6 +17,8 @@
 #include <eval/moFullEvalByCopy.h>
 #include <eoInt.h>
 
+
+
 //-----------------------------------------------------------------------------
 // Global problem description
 // The number of agents, and the number of items
@@ -43,7 +45,7 @@ public:
 
     /**
      * Find the agent with min utility
-     */
+     */            
     void operator()(EOT& allocation) {
         static thread_local std::vector<typename EOT::Fitness> utility;
 
@@ -61,6 +63,7 @@ public:
         std::sort(utility.begin(), utility.end());
 
         // calculate fitnes with leximin
+        
         // TODO: endre 0.1 til 1/(maxUti + 1)
         const double k = 0.1; 
         typename EOT::Fitness fitness = 0;
@@ -72,13 +75,12 @@ public:
         }
         
 
-        /*
-        Maximin allocation
-
+        // Maximin allocation
+    
         // Find the agent with the lowest utility
         auto minUtility = std::numeric_limits<typename EOT::Fitness>::max();
         for (auto util : utility)
-            minUtility = std::min(minUtility, util); */
+            minUtility = std::min(minUtility, util);
 
         // Inform the allocation about its utility
         // fitness with leximin and minUtility with maximin
@@ -145,12 +147,30 @@ class moveNeighborhood : public moNeighborhood<moveNeighbor<EOT, Fitness> >
 public:
     typedef moveNeighbor<EOT, Fitness> Neighbor;
 
+    std::vector<std::pair<int, int>> allMoves;
+    typename std::vector<std::pair<int, int>>::iterator currentMove;
+
+    moveNeighborhood() {
+        for (int item = 0; item < M; ++item) {
+            for (int agent = 0; agent < N; ++agent) {
+                allMoves.emplace_back(item, agent);
+            }
+        }
+    }
+
     /**
      * @return true if there is at least an available neighbor
      */
     virtual bool hasNeighbor(EOT& solution) {
-        return N > 1 && M > 0;
-    };
+        return !allMoves.empty();
+    }
+
+    /**
+     * @return if neighborhood is random (default false)
+    */
+    virtual bool isRandom() override {
+        return true;
+    }
 
     /**
      * Initialization of the neighborhood
@@ -158,12 +178,9 @@ public:
      * @param current the first neighbor
      */
     virtual void init(EOT& solution, Neighbor& current) {
-        // blir dette rikitg?
-        nextItem = 0;
-        nextAgent = 0;
-
-        next(solution, current);
-        //next(solution, current);
+        std::shuffle(allMoves.begin(), allMoves.end(), std::default_random_engine());
+        currentMove = allMoves.begin();
+        current.setMove(currentMove->first, currentMove->second);
     }
 
     /**
@@ -172,53 +189,53 @@ public:
      * @param current the next neighbor
      */
     virtual void next(EOT& solution, Neighbor& current) {
-        current.setMove(nextItem, nextAgent);
-
-        // Find out what the next neighbor should look like
-        nextAgent++;
-
-        // TODO: change to give random agent a random item?
-
-        // Skip making a no-op move, and ensure correct wrapping
-        while (nextItem < M) {
-            if (nextAgent >= N) {
-                nextAgent = 0;
-                nextItem++;
-            } else if (solution[nextItem] == nextAgent) {
-                nextAgent++;
-            } else break;
+        ++currentMove;
+        if (currentMove != allMoves.end()) {
+            current.setMove(currentMove->first, currentMove->second);
         }
     }
 
-    /**
-     * Test if there is again a neighbor
-     * @param _solution the solution to explore
-     * @return true if there is again a neighbor not explored
-     */
+    
     virtual bool cont(EOT& _solution) {
-        return nextItem < M;
+        return currentMove != allMoves.end();
     }
 
     virtual std::string className() const {
         return "moveNeighborhood";
     }
-
-private:
-    // The pair of item and agent that makes the next neighbor
-    int nextItem;
-    int nextAgent;
 };
 
 //-----------------------------------------------------------------------------
 // the simple Hill-Climbing local search
 #include <algo/moSimpleHC.h>
 
+#include <algo/moSA.h>
+
+#include <continuator/moStat.h>
+#include <continuator/moValueStat.h>
+#include <utils/eoParam.h>
+
+
+//Algorithm and its components
+#include <coolingSchedule/moCoolingSchedule.h>
+#include <algo/moSA.h>
+
+//comparator
+#include <comparator/moSolNeighborComparator.h>
+
+//continuators
+#include <continuator/moTrueContinuator.h>
+#include <continuator/moCheckpoint.h>
+#include <continuator/moFitnessStat.h>
+#include <utils/eoFileMonitor.h>
+#include <continuator/moCounterMonitorSaver.h>
+#include <continuator/moCounterStat.h>
 
 int main()
 {
     // TODO: Take in as parameters
-    N = 5; // Number of agents
-    M = 10; // Number of items
+    N = 7; // Number of agents
+    M = 8; // Number of items
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -226,12 +243,36 @@ int main()
 
     Valuations.clear();
     Valuations.resize(N, std::vector<int>(M));
+    // Manually set valuations for the agents
+
+    Valuations[0] = {1, 2, 3, 4, 5, 6, 7, 4}; // First agent
+    Valuations[1] = {4, 3, 2, 1, 2, 5, 6, 7}; // Second agents
+    Valuations[2] = {2, 1, 1, 4, 1, 1, 7, 7}; // Second agents
+    Valuations[3] = {7, 7, 7, 7, 7, 0, 0, 1}; // Second agents
+    Valuations[4] = {0, 0, 0, 6, 6, 6, 7, 7}; // Second agents
+    Valuations[5] = {7, 6, 5, 4, 3, 2, 1, 0}; // Second agents
+    Valuations[6] = {1, 1, 3, 1, 5, 6, 6, 7}; // Second agents
+    
+
+   // Manually set valuations for the agents
+   /*
+    Valuations[0] = {7, 7, 7, 7, 7, 7, 7, 7}; // First agent
+    Valuations[1] = {7, 7, 7, 7, 7, 7, 7, 7}; // Second agents
+    Valuations[2] = {7, 7, 7, 7, 7, 7, 7, 7}; // Thired agents
+    Valuations[3] = {7, 7, 7, 7, 7, 7, 7, 7}; // Fourth agents
+    Valuations[4] = {7, 7, 7, 7, 7, 7, 7, 7}; // Fifth agents
+    Valuations[5] = {7, 7, 7, 7, 7, 7, 7, 7}; // Sixth agents
+    Valuations[6] = {7, 7, 7, 7, 7, 7, 7, 7}; // Seventh agents
+    */
+   
     // Assign random valuations to each item
+    /*
     for (int n = 0; n < N; n++) {
         for (int m = 0; m < M; m++) {
             Valuations[n][m] = distr(gen);
         }
-    }
+    }*/
+
 
     // Initialize solution with random elements from 1 to n
     Allocation solution(M);
@@ -252,6 +293,10 @@ int main()
 
     // Iterate through all neighbours and print their evaluation
     
+     /*
+    int moveCounter = 0;
+
+   
     moveNeighbor<Allocation> move;
     moveNH.init(solution, move);
     moveEval(solution, move);
@@ -260,14 +305,48 @@ int main()
         moveNH.next(solution, move);
         moveEval(solution, move);
         move.print();
-    }
+        moveCounter++;
+    }*/
+
+    // std::cout << "moves: "<< moveCounter << std::endl <<std::endl;
+
+    /* =========================================================
+     *
+     * the cooling schedule of the process
+     *
+     * ========================================================= */
+
+    // initial temp, factor of decrease, number of steps without decrease, final temp.
+
+    moSimpleCoolingSchedule<Allocation> coolingSchedule(1, 0.06, 100, 0.000000001);
+
+    moTrueContinuator<moveNeighbor<Allocation>> continuator;
+    moCheckpoint<moveNeighbor<Allocation>> checkpoint(continuator);
+
+    // Define the eoValueParam to hold the iteration count
+    eoValueParam<unsigned> iterationCount(0, "Iteration Count");
+    
+    moCounterStat<Allocation> iterStat;
+    //moValueStat<Allocation, unsigned> iterStat(iterationCount);
+    checkpoint.add(iterStat);
+
+
+    // Define the parameters for the cooling schedule
+    double initialTemperature = 10.0;  // Initial temperature
+    double coolingFactor = 0.0000001;        // Factor by which the temperature will be multiplied at each step
+    unsigned span = 100;               // Number of iterations with the same temperature
+    double finalTemperature = 0.000001;    // Final temperature, stopping criterion
+
+    moSA<moveNeighbor<Allocation>> localSearch1(moveNH, fullEval, moveEval, coolingSchedule, checkpoint);
+    localSearch1(solution);
 
     // Define the simple Hill-Climbing 
-    moSimpleHC<moveNeighbor<Allocation>> hc(moveNH, fullEval, moveEval);
+    //moSimpleHC<moveNeighbor<Allocation>> hc(moveNH, fullEval, moveEval);
 
     // apply the local search on the solution
-    hc(solution);
+    //hc(solution);
 
-    std::cout << "final: " << solution << std::endl ;
+    std::cout << "final: " << solution << std::endl << std::endl ;
+    std::cout << "Iterations: " << iterStat.getValue() << std::endl ;
 
 }
